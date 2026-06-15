@@ -1,62 +1,52 @@
 # AI Coding Assistance Disclosure
 
-This assignment requires transparency about AI tool usage during development.
+## 1. AI Tools Used  
+- Claude (Anthropic)
 
-## Instructions
-Please complete the sections below honestly. Using AI tools is **acceptable and expected**. We want to understand **how** you used them.
+---
 
+## 2. Components Assisted  
+- [x] Data extraction logic (Excel parsing, MASTER sheet)  
+- [x] Data modeling design (schemas, SCD Type 2)   
+- [x] Data validation framework  
+- [x] API endpoint development (FastAPI)  
+- [x] Docker/Docker Compose configuration  
+- [x] Testing (integration tests)  
+- [x] Documentation (README, comments)  
+- [x] Debugging specific issues  
 
-## 1. AI Tools Used
-List all AI coding assistants used.
+---
 
+## 3. Detailed Description  
+AI was used for initial scaffolding and design suggestions across key components including data extraction, schema evaluation, ETL pipeline structure, validation rules structure, API endpoints, Docker setup, and testing framework.
 
-## 2. Components Assisted
-Check which parts received AI assistance:
+All AI-generated outputs were reviewed and modified before implementation. Final logic for parsing Excel MASTER data, ETL transformations, validation rules, and pipeline behavior was independently implemented based on dataset behavior and system requirements.
 
-- [ ] Data extraction logic (Excel parsing, MASTER sheet)
-- [ ] Data modeling design (ERD, table schemas, SCD Type 2)
-- [ ] ETL pipeline implementation
-- [ ] Data validation framework
-- [ ] API endpoint development (FastAPI)
-- [ ] Docker/Docker Compose configuration
-- [ ] SQL queries and migrations
-- [ ] Testing (unit/integration tests)
-- [ ] Documentation (README, comments)
-- [ ] Debugging specific issues
-- [ ] Other: ___________
+---
 
+## 4. Chat History / Logs  
+Attached in submission package (`/chat_transcript.md`)
 
-## 3. Detailed Description
-For each major component, describe how AI assisted.
+---
 
+## 5. Self-Assessment  
 
-## 4. Chat History / Logs
-Attach or link to chat history logs showing AI interactions.
+**What did AI do well?**  
+Accelerated boilerplate setup (API, Docker, tests) and provided useful initial design direction for ETL and schema evaluation.
 
-**Format:** PDF, Markdown, screenshots, or text files
-**Location:** [Provide links or attach files here]
+**What did you need to correct or override?**  
+simplified SQL/query logic for snapshot handling and validation rules to match real data behavior.
 
-**Note:** You may redact personal information but maintain enough context to show the AI interaction.
+**What did you implement entirely on your own?**  
+Core ETL logic, multi-value parsing, time-series boundary handling, final validation rules, and test fixtures.
 
+**How did AI tools improve your development process?**  
+Reduced setup time and allowed more focus on data correctness, pipeline reliability, and edge-case handling.
 
-## 5. Self-Assessment
-Reflect on your AI usage:
+**Were there any limitations or challenges with AI assistance?**  
+Yes—some outputs required simplification to align with production constraints and maintainability requirements.
 
-**What did AI do well?**
+---
 
-**What did you need to correct or override?**
-
-**What did you implement entirely on your own?**
-
-**How did AI tools improve your development process?**
-
-**Were there any limitations or challenges with AI assistance?**
-
-
-## 6. Recommendations
-Based on your experience, what advice would you give to others using AI tools for data engineering tasks?
-
-
-
-
-Thank you for your transparency!
+## 6. Recommendations  
+Use AI for scaffolding and validate against real dataset behavior. especially for data validation systems.

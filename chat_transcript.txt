@@ -1,0 +1,548 @@
+TRANSCRIPT 
+
+[2026-06-10 09:12:03] USER:
+How do I design a versioned data pipeline for corporate rating files in Excel?
+
+[2026-06-10 09:12:05] AI:
+Use a snapshot-based model where each file upload is treated as an immutable version. Store metadata like upload_id, checksum, and effective_from/effective_to dates to enable point-in-time queries.
+
+------------------------------------------------------------
+
+[2026-06-10 09:14:22] USER:
+Should I overwrite records or keep historical versions?
+
+[2026-06-10 09:14:25] AI:
+Do not overwrite. Use append-only snapshots. Overwriting breaks auditability and prevents time-series analysis. Instead, implement SCD Type 2 or snapshot fact tables.
+
+------------------------------------------------------------
+
+[2026-06-10 09:17:40] USER:
+The Excel sheet is not tabular, it's key-value based. How do I parse it?
+
+[2026-06-10 09:17:43] AI:
+Iterate row-by-row and map:
+key = row["Unnamed: 1"]
+value = row["Unnamed: 2"]
+
+Then transform into structured JSON objects per company entity.
+
+------------------------------------------------------------
+
+[2026-06-10 09:21:11] USER:
+How do I ensure idempotency in file processing?
+
+[2026-06-10 09:21:13] AI:
+Compute a SHA256 checksum for each file and store it in an upload audit table. Before processing, check if the checksum exists—if yes, skip ingestion.
+
+------------------------------------------------------------
+
+[2026-06-10 09:25:50] USER:
+What kind of validation rules should I apply?
+
+[2026-06-10 09:25:53] AI:
+Validate required fields (entity, sector, country, currency), enforce rating constraints (AAA → C scale), and numeric constraints like industry weight between 0 and 1.
+
+------------------------------------------------------------
+
+[2026-06-10 09:30:18] USER:
+What endpoints should I expose in FastAPI?
+
+[2026-06-10 09:30:21] AI:
+Include:
+- /companies
+- /companies/{id}/history
+- /snapshots/latest
+- /uploads/{id}/details
+Also add comparison endpoints for point-in-time analytics.
+
+------------------------------------------------------------
+
+[2026-06-10 09:34:02] USER:
+How do I support multi-company comparison as of a specific date?
+
+[2026-06-10 09:34:05] AI:
+Use effective_from/effective_to filtering:
+WHERE 'date' BETWEEN effective_from AND COALESCE(effective_to, '9999-12-31')
+
+This enables consistent point-in-time comparisons.
+
+------------------------------------------------------------
+
+[2026-06-10 09:38:44] USER:
+What is the correct data model for snapshots?
+
+[2026-06-10 09:38:47] AI:
+Use:
+- dim_company (static attributes)
+- fact_company_snapshot (versioned metrics)
+- upload_audit (file tracking)
+
+Each upload becomes one immutable snapshot.
+
+
+
+FILES
+- corporates_A_1.xlsm
+- corporates_A_2.xlsm
+- corporates_B_1.xlsm
+- corporates_B_2.xlsm
+Only MASTER sheet is used (non-tabular key-value structure)
+
+PARSING LOGIC
+For each row in MASTER sheet:
+key = row["Unnamed: 1"]
+value = row["Unnamed: 2"]
+
+Convert into structured JSON like:
+{
+  "rated_entity": "Company A",
+  "industry_risk_score": "BBB",
+  "currency": "EUR"
+}
+
+BUSINESS INTERPRETATION
+Company A:
+- Version 1: A / B+ / C (Industry / Business / Financial risk)
+- Version 2: BBB / B / CC
+=> Same company, multiple versions, changing metrics
+
+Company B:
+- Version 1: Industry weight 0.15, BBB
+- Version 2: Industry weight 0.25, BBB-
+=> Same company, updated metrics over time
+
+CORE REQUIREMENT
+Focus is NOT parsing Excel
+Focus is:
+- Temporal tracking
+- Versioning
+- Point-in-time queries
+- Time-series analysis
+- Multiple versions per company
+
+DATA MODEL
+
+dim_company
+- company_sk
+- company_name
+- sector
+- country
+- currency
+- accounting_principles
+- business_year_end
+
+fact_company_snapshot
+- snapshot_id
+- company_sk
+- version_number
+- effective_from
+- effective_to
+- industry_risk
+- industry_risk_score
+- industry_weight
+- business_risk_profile
+- financial_risk_profile
+- upload_id
+- created_at
+
+upload_audit
+- upload_id
+- filename
+- checksum
+- upload_timestamp
+- processed_timestamp
+- status
+
+VERSIONING LOGIC
+- Each upload = snapshot
+- effective_from / effective_to define validity window
+- Supports point-in-time queries
+
+VALIDATION RULES
+
+Required fields:
+- Rated entity
+- CorporateSector
+- Country of origin
+- Reporting Currency
+
+Numeric:
+- Industry weight: 0 to 1
+- Liquidity: numeric
+- Credit metrics: numeric
+
+Rating scale:
+AAA, AA+, AA, AA-, A+, A, A-, BBB+, BBB, BBB-, BB+, BB, BB-, B+, B, B-, CCC, CC, C
+
+ETL PIPELINE
+Extract → Validate → Transform → Load
+
+Structure:
+app/
+ extract/
+ validate/
+ transform/
+ load/
+ api/
+ models/
+
+IDEMPOTENCY
+- Use SHA256 checksum
+- If checksum exists in upload_audit, skip processing
+
+FASTAPI ENDPOINTS
+
+Companies:
+- GET /companies
+- GET /companies/{id}
+- GET /companies/{id}/versions
+- GET /companies/{id}/history
+
+Comparison:
+- GET /companies/compare?company_ids=1,2&as_of_date=YYYY-MM-DD
+
+Snapshots:
+- GET /snapshots
+- GET /snapshots/latest
+- GET /snapshots/{id}
+
+Uploads:
+- GET /uploads
+- GET /uploads/stats
+- GET /uploads/{id}/details
+
+DOCKER COMPOSE
+- postgres: postgres:15
+- api service depends on postgres (health check)
+
+The files are:
+	•	corporates_A_1.xlsm
+	•	corporates_A_2.xlsm
+	•	corporates_B_1.xlsm
+	•	corporates_B_2.xlsm
+Only the MASTER sheet matters.
+The sheet is not tabular.
+Instead it is a key-value structure:
+Unnamed:1
+Unnamed:2
+Rated entity
+Company A
+CorporateSector
+Personal & Household Goods
+Industry risk score
+BBB
+Country of origin
+Germany
+...
+...
+Therefore your extractor should:
+
+for row in master_sheet:
+    key = row["Unnamed: 1"]
+    value = row["Unnamed: 2"]
+
+and convert into:
+
+{
+  "rated_entity": "Company A",
+  "industry_risk_score": "BBB",
+  "currency": "EUR"
+}
+
+
+Company A
+Version 1
+
+Industry risk score = A
+Business risk profile = B+
+Financial risk profile = C
+
+Version 2
+
+Industry risk score = BBB
+Business risk profile = B
+Financial risk profile = CC
+
+Meaning:
+	•	Same company
+	•	New upload/version
+	•	Several rating attributes changed
+
+Company B
+Version 1
+
+Industry weight = 0.15
+Business risk profile = BBB
+
+Version 2
+
+Industry weight = 0.25
+Business risk profile = BBB-
+
+Meaning:
+	•	Same company
+	•	Different upload/version
+	•	Weight and ratings changed
+
+The real challenge is not Excel parsing.
+The real challenge is:
+Temporal Tracking + Versioning
+They explicitly ask for:
+	1.	Historical tracking
+	2.	Point-in-time queries
+	3.	Time-series analysis
+	4.	Multiple versions per company
+This means your warehouse must store:
+
+Company A
+    Version 1
+    Version 2
+
+Company B
+    Version 1
+    Version 2
+
+instead of updating rows in place.
+Dimension: Company
+
+dim_company
+-----------
+company_sk
+company_name
+sector
+country
+currency
+accounting_principles
+business_year_end
+
+
+Fact: Snapshot
+One upload = one snapshot
+
+fact_company_snapshot
+---------------------
+snapshot_id
+company_sk
+
+version_number
+
+effective_from
+effective_to
+
+industry_risk
+industry_risk_score
+industry_weight
+
+business_risk_profile
+financial_risk_profile
+
+upload_id
+created_at
+
+
+Upload Audit Table
+
+upload_audit
+------------
+upload_id
+filename
+checksum
+upload_timestamp
+processed_timestamp
+status
+
+This satisfies:
+Requirement #1: Historical upload tracking.
+
+For each company:
+
+Company A
+
+Version 1
+effective_from = 2026-06-01
+effective_to   = 2026-06-10
+
+Version 2
+effective_from = 2026-06-10
+effective_to   = NULL
+
+This enables:
+
+SELECT *
+FROM fact_company_snapshot
+WHERE company_id = 1
+AND '2026-06-05'
+BETWEEN effective_from
+AND COALESCE(effective_to,'9999-12-31')
+
+Point-in-time reporting.
+
+The assignment explicitly asks for validation.
+Implement:
+Required Fields
+
+Rated entity
+CorporateSector
+Country of origin
+Reporting Currency/Units
+
+
+Numeric Validation
+Industry Weight
+
+0 <= weight <= 1
+
+
+Liquidity
+
+must be numeric
+
+
+Credit Metrics
+
+must be numeric
+
+
+Rating Validation
+Allowed values:
+
+[
+"AAA",
+"AA+",
+"AA",
+"AA-",
+"A+",
+"A",
+"A-",
+"BBB+",
+"BBB",
+"BBB-",
+"BB+",
+"BB",
+"BB-",
+"B+",
+"B",
+"B-",
+"CCC",
+"CC",
+"C"
+]
+
+
+Create stages:
+
+Extract
+    ↓
+Validate
+    ↓
+Transform
+    ↓
+Load
+
+Recommended structure:
+
+app/
+
+├── extract/
+│   └── excel_parser.py
+
+├── validate/
+│   └── rules.py
+
+├── transform/
+│   └── mapper.py
+
+├── load/
+│   └── repository.py
+
+├── api/
+│   └── routes.py
+
+├── models/
+│   └── sqlalchemy_models.py
+
+
+Required by assignment.
+Use file checksum.
+
+sha256(file)
+
+Store:
+
+upload_audit.checksum
+
+Before processing:
+
+SELECT 1
+FROM upload_audit
+WHERE checksum = ?
+
+If exists:
+
+Skip file
+
+Minimum implementation:
+Companies
+
+GET /companies
+
+GET /companies/{id}
+
+GET /companies/{id}/versions
+
+GET /companies/{id}/history
+
+
+Comparison
+
+GET /companies/compare
+
+Example:
+
+/companies/compare?company_ids=1,2&as_of_date=2026-06-01
+
+Returns:
+
+[
+  {
+    "company": "Company A",
+    "industry_risk_score": "A"
+  },
+  {
+    "company": "Company B",
+    "industry_risk_score": "BBB"
+  }
+]
+
+
+Snapshots
+
+GET /snapshots
+
+GET /snapshots/latest
+
+GET /snapshots/{id}
+
+
+Upload Audit
+
+GET /uploads
+
+GET /uploads/stats
+
+GET /uploads/{id}/details
+
+
+Minimum:
+
+services:
+
+  postgres:
+    image: postgres:15
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+
